@@ -5,6 +5,7 @@
 #include <functional>
 
 namespace Pipe {
+
     /**
     * support for a class that needs to
     * receive input, process it and pass it to the next
@@ -12,7 +13,7 @@ namespace Pipe {
     */
     template<typename T> struct pipe_t
     {
-        std::shared_ptr<pipe_t>  m_next;
+        std::shared_ptr<pipe_t> m_next;
         std::function<bool(T&)> m_exec;
 
         /**
