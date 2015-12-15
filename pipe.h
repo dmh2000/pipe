@@ -67,8 +67,10 @@ namespace Pipe {
         }
 
         /**
-        * subclasses implement 'exec' and call 'next' if there is one
-        * this implementation is a passthrough pipe
+        * subclasses implement 'exec' and call 'next' i
+        * this is used if the input pipe is via a functor or lambda with operator()
+        * rather than its own exec. these functions must return false to continue execution
+        * or true to terminate
         */
         virtual void  exec(const T &t)
         {
@@ -140,17 +142,21 @@ namespace Pipe {
      * };
      *
      */
-    template<typename T> std::shared_ptr<pipe_t<T> > pipe(std::function<bool(T &)> f)
+
+
+    // create a pipe from an object, function, functor or lambda that is Callable
+    template<typename T> std::shared_ptr<pipe_t<T> > pipe(std::function<bool(T &)> g)
     {
-        return std::make_shared<pipe_t<T> >(nullptr,f);
+        return std::make_shared<pipe_t<T> >(nullptr,g);
     }
+
 
     /**
      * compose some number of piped functions
      */
     template<typename T,typename... Args> std::shared_ptr<pipe_t<T> > compose(const Args& ...args)
     {
-        size_t len = sizeof...(args);                   // get number of functions
+        size_t len = sizeof...(args);                     // get number of functions
         std::shared_ptr<pipe_t<T> >  args[] = {args...};  // deconstruct the argument pack
 
         if (len == 0) {
