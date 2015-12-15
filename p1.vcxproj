@@ -144,11 +144,11 @@
   <ItemGroup>
     <ClCompile Include="p1.cpp" />
     <ClCompile Include="test1.cpp" />
+    <ClCompile Include="test6.cpp" />
     <ClCompile Include="test2.cpp" />
     <ClCompile Include="test3.cpp" />
     <ClCompile Include="test4.cpp" />
     <ClCompile Include="test5.cpp" />
-    <ClCompile Include="test6.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="data.h" />

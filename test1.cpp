@@ -1,3 +1,4 @@
+
 #include <cstdio>
 #include <cstring>
 #include <cstdint>
@@ -7,121 +8,40 @@
 
 using namespace Pipe;
 
-struct Writer
+bool f(int &i)
 {
-    Writer() {}
+    printf("f : %d\n",i);
+    i++;
+    return true;
+}
 
-    virtual ~Writer()
-    {
-        printf("~Writer\n");
-    }
-
-    // Writer is a functor without state so just implement operator()
-    bool operator()(pipe_data_t &data)
-    {
-        // print the input data
-        pipe_data_t::print("W",data);
-        return true;
-    }
-};
-
-struct Classifier: public pipe_t<pipe_data_t>
+bool g(int &i)
 {
-    Classifier() {}
+    printf("g : %d\n",i);
+    i++;
+    return true;
+}
 
-    virtual ~Classifier()
-    {
-        printf("~Classifier\n");
-    }
-
-    void exec(const pipe_data_t &data)  override
-    {
-        // print the input data
-        pipe_data_t::print("C",data);
-
-        // create a mutable copy
-        pipe_data_t x = data;
-
-        // update the copy
-        x.cls = 1;
-
-        // call the next
-        next(x);
-    }
-};
-
-struct Transform: public pipe_t<pipe_data_t>
+bool h(int &i)
 {
-    Transform() {}
-
-    virtual ~Transform()
-    {
-        printf("~Transform\n");
-    }
-
-    void exec(const pipe_data_t &data)  override
-    {
-        // print the input data
-        pipe_data_t::print("T",data);
-
-        // create a mutable copy
-        pipe_data_t x = data;
-
-        // update the copy
-        uint32_t    u32 = data.u32;
-        x.lla.m_lon = static_cast<double>(u32) * 2.0;
-        x.lla.m_lat = static_cast<double>(u32) * 2.0;
-        x.lla.m_alt = static_cast<double>(u32) * 2.0;
-
-        // call the next
-        next(x);
-    }
-};
-
-struct Reader: public pipe_t<pipe_data_t>
-{
-    Reader() {}
-
-    virtual ~Reader()
-    {
-        printf("~Reader\n");
-    }
-
-    void exec(const pipe_data_t &data) override
-    {
-        // create multiple mutable copies
-        for(int i=0;i<10;++i) {
-            pipe_data_t::print("R",data);
-            // create mutable copy
-            pipe_data_t x = data;
-            // update it
-            x.u32 = i;
-            // call next
-            next(x);
-        }
-    }
-};
+    printf("h : %d\n",i);
+    return true;
+}
 
 
 void test1()
 {
-    printf("TEST explicit pipe between dynamically allocated classes with an object as the piped data (pipe_data_t = latitude/longitude/altitude)\n");
-    printf("uses inheritance of the pipe_t object\n");
+    printf("TEST composed pipeline with all plain old functions\n");
 
-    // use objects for Reader,Transform and Classifier
-    std::shared_ptr<Reader>     r = std::make_shared<Reader>();
-    std::shared_ptr<Transform>  t = std::make_shared<Transform>();
-    std::shared_ptr<Classifier> c = std::make_shared<Classifier>();
-    
-    // use a functor for writing instead of object
-    auto w  = pipe<pipe_data_t>(Writer());
+    // lambdas
+    auto a = pipe<int>(f);
+    auto b = pipe<int>(g);
+    auto c = pipe<int>(h);
 
-    pipe_data_t  v = pipe_data_t();
 
-    // set up the pipeline
-    // reader -> transform -> classifier -> writer
-    auto x = compose<pipe_data_t>(r,t,c,w);
+    // compose them into an a -> b -> c pipeline
+    auto x = compose<int>(a,b,c);
 
-    // execute it
-    x->exec(v);
+    // execute the pipeline
+    x->exec(1);
 }

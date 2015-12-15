@@ -13,18 +13,27 @@ namespace Pipe {
     */
     template<typename T> struct pipe_t
     {
+        /**
+         * a pointer to the next 'pipe' in the pipeline that this element pipes its output to
+         */
         std::shared_ptr<pipe_t> m_next;
+
+        /**
+         * a Callable that executes the functor for this element in the pipeline
+         */
         std::function<bool(T&)> m_exec;
 
         /**
         * default constructor
-        * no next until it is set by 'pipe'
+        * no next until it is set by 'pipe'. if not set, the pipeline stops here
         */
         pipe_t(): m_next(nullptr),m_exec(nullptr) {}
 
 
         /**
          * initializing constructor
+         * @param next a pointer to the next 'pipe'
+         * @param exec a callable used by this pipe
          */
         pipe_t(std::shared_ptr<pipe_t> next,std::function<bool(T&)> exec): m_next(next),m_exec(exec) 
         {
@@ -49,15 +58,17 @@ namespace Pipe {
         * connect 'this' pipe to another pipe as its 'next' in the pipeline
         * set the destintation object for the subsequent exec-next call
         * return the destination so the calls can be chained
+        * @param p next pipe in the pipeline
         */
-        virtual std::shared_ptr<pipe_t> pipe(std::shared_ptr<pipe_t> p)
+        virtual std::shared_ptr<pipe_t> pipe(std::shared_ptr<pipe_t> next)
         {
-            m_next = p;
-            return p;
+            // save the next one and return it
+            m_next = next;
+            return next;
         }
 
         /**
-        * call next object in chain
+        * call next object in chain if there is one
         */
         virtual void next(const T &t)
         {
@@ -71,6 +82,13 @@ namespace Pipe {
         * this is used if the input pipe is via a functor or lambda with operator()
         * rather than its own exec. these functions must return false to continue execution
         * or true to terminate
+        *
+        * Uses of this class (pipe) can either implement 'exec' or pass in a callable to be used in the default exec
+        * To implement an own exec function, inherit this class. the exec function must call 'next' with the
+        * output data from this state
+        *
+        * to use the default 'exec' function, create the pipe with a callable (functor, std::function, lambda) 
+        * and the lambda returns false if it has more operations or true if it is done
         */
         virtual void  exec(const T &t)
         {
@@ -87,64 +105,28 @@ namespace Pipe {
 
         /*
         in subclass:
-        void exec(const LLA &pos) {
+        void exec(const int &data) {
         // process the point
         // possibly creating a new one
         // point = ...
-        next(point);
+        next(i);
         // also its ok to call next any number of times as new data is generated
         for(i=0;i<N;++i) {
-            // point = ....
-            next(point)
+            newdata = ....use input data to create a new output object
+            next(newdata)
         }
         */
 
     };
 
 
+
     /**
-     * create a pipe with a specified callable function or functor
-     * the function can be a functor, a plain old function or a lambda 
-     * depending on whether you need the function to have state
-     *
-     * 1. all the pipes functions must have the same argument type bool f(T &t);
-     * 2. the piped functions all get the same input type, a single reference
-     *    to a mutable value of the type specified in the template specialization
-     * 3. if the value is to be modified, change it directory via the reference
-     * 4. the functions may generate more than one input to the pipe. they should return 
-     *    true (done) if no more input, false if more input is needed
-     *
-     * =========================================
-     * example for a one to one transform
-     * =========================================
-     * struct functor
-     * {
-     *     bool operator()(T &t)
-     *     {
-     *         printf("3");
-     *         return true; // 'done'
-     *     }
-     * };
-     *  
-     * =========================================
-     * example for a one to many transform
-     * =========================================
-     * struct functor {
-     *     int count;
-     *     functor() : count(10) {}
-     * 
-     *     bool operator()(T &t) {
-     *         print("2");
-     *         count--;
-     *         // return false until all output is produced
-     *         return (count == 0);
-     *     }
-     * };
-     *
+     * create a pipe from a function, functor or lambda that is Callable
+     * callables include std::function, lambda, functor with operator(), or a plain old function
+     * this function may copy construct the input functor multiple times. be sure to have a valid copy constructor
+     * if the default isn't enough
      */
-
-
-    // create a pipe from an object, function, functor or lambda that is Callable
     template<typename T> std::shared_ptr<pipe_t<T> > pipe(std::function<bool(T &)> g)
     {
         return std::make_shared<pipe_t<T> >(nullptr,g);

@@ -7,58 +7,145 @@
 
 using namespace Pipe;
 
-struct F4: public pipe_t<int>
+struct Writer5
 {
-    F4()
+    Writer5() 
     {
+        printf("Writer\n");
     }
 
-    virtual ~F4()
-    {
-        printf("~F4\n");
+    Writer5(const Writer5 &b) {
+        printf("Writer cc\n");
     }
 
-    void exec(const int &count)  override
+    virtual ~Writer5()
     {
-        printf("F4 : %d\n",count);
-        // create multiple mutable copies
-        for(int i=0;i<count;++i) {
-            // create mutable copy
-            // call next
-            next(i);
-        }
+        printf("~Writer\n");
     }
-};
 
-// one to one transform
-struct functor5
-{
-    bool operator()(int i)
+    // Writer is a functor without state so just implement operator()
+    bool operator()(pipe_data_t &data)
     {
-        printf("functor 5 : %d\n",i);
+        // print the input data
+        pipe_data_t::print("W",data);
         return true;
     }
 };
 
+struct Classifier5: public pipe_t<pipe_data_t>
+{
+    Classifier5() 
+    {
+        printf("Classifier\n");
+    }
+
+
+    virtual ~Classifier5()
+    {
+        printf("~Classifier\n");
+    }
+
+    void exec(const pipe_data_t &data)  override
+    {
+        // print the input data
+        pipe_data_t::print("C",data);
+
+        // create a mutable copy
+        pipe_data_t x = data;
+
+        // update the copy
+        x.cls = 1;
+
+        // call the next
+        next(x);
+    }
+};
+
+struct Transform5: public pipe_t<pipe_data_t>
+{
+    Transform5()
+    {
+        printf("Transform\n");
+    }
+
+
+    virtual ~Transform5()
+    {
+        printf("~Transform\n");
+    }
+
+    void exec(const pipe_data_t &data)  override
+    {
+        // print the input data
+        pipe_data_t::print("T",data);
+
+        // create a mutable copy
+        pipe_data_t x = data;
+
+        // update the copy
+        uint32_t    u32 = data.u32;
+        x.lla.m_lon = static_cast<double>(u32) * 2.0;
+        x.lla.m_lat = static_cast<double>(u32) * 2.0;
+        x.lla.m_alt = static_cast<double>(u32) * 2.0;
+
+        // call the next
+        next(x);
+    }
+};
+
+class Reader5: public pipe_t<pipe_data_t>
+{
+private:
+    int count;
+public:
+    Reader5()
+    {
+        count = 0;
+        printf("Reader\n");
+    }
+
+
+    virtual ~Reader5()
+    {
+        printf("~Reader\n");
+    }
+
+    void exec(const pipe_data_t &data) override
+    {
+        // create multiple mutable copies
+        for(int i=0;i<10;++i) {
+            pipe_data_t::print("R",data);
+            // create mutable copy
+            pipe_data_t x = data;
+            // update it
+            x.u32 = i;
+            // call next
+            next(x);
+        }
+    }
+};
+
+
 void test5()
 {
-    printf("TEST composed pipeline with mix of objects,functors and lambda functions\n");
-    printf("objects and/or functors when state is needed, functors/lambdas when code can be pure\n");
+    printf("TEST explicit pipe between dynamically allocated classes with an object as the piped data (pipe_data_t = latitude/longitude/altitude)\n");
+    printf("uses inheritance of the pipe_t object\n");
 
-    // object
-    std::shared_ptr<F4>     r = std::make_shared<F4>();
+    // use objects for Reader,Transform and Classifier
+    std::shared_ptr<Reader5>     r = std::make_shared<Reader5>();
+    std::shared_ptr<Transform5>  t = std::make_shared<Transform5>();
+    std::shared_ptr<Classifier5> c = std::make_shared<Classifier5>();
 
-    // lambdas
-    auto a = pipe<int>([](int &i) -> bool { printf("a: %d\n",i); i++; return true; });
-    auto b = pipe<int>([](int &i) -> bool { printf("b: %d\n",i); i++; return true; });
-    auto c = pipe<int>([](int &i) -> bool { printf("c: %d\n",i); i++; return true; });
+    // use a functor for writing instead of object
+    auto w  = pipe<pipe_data_t>(Writer5());
 
-    // functor
-    auto d = pipe<int>(functor5());
+    pipe_data_t  v = pipe_data_t();
 
-    // compose them into an a -> b -> c pipeline
-    auto x = compose<int>(r,a,b,c,d);
+    // set up the pipeline
+    // reader -> transform -> classifier -> writer
+    auto x = compose<pipe_data_t>(r,t,c,w);
 
-    // execute the pipeline
-    x->exec(10);
+    // execute it
+    x->exec(v);
 }
+

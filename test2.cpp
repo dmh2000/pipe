@@ -4,137 +4,80 @@
 #include "pipe.h"
 #include "data.h"
 
-
 using namespace Pipe;
 
-struct Writer
+// =======================================================================================
+// functor classes for test 3
+// =======================================================================================
+
+// one to many transform using a generator pattern
+struct functor1
 {
-    Writer() {}
+    int count;
+    functor1(): count(10) {}
 
-    virtual ~Writer()
-    {
-        printf("~Writer\n");
-    }
-
+    // generate multiple output, return done == 'true' with last output
     bool operator()(pipe_data_t &data)
-        // void exec(const pipe_data_t &data)  override
     {
-        // print the input data
-        pipe_data_t::print("W",data);
+        pipe_data_t::print("1",data);
+
+        data.lla.m_lat += 1.0;
+        data.lla.m_lon += 2.0;
+        data.lla.m_alt  = 99.0;
+        count--;
+        return (count == 0);
+    }
+};
+
+// one to one transform
+struct functor2
+{
+    bool operator()(pipe_data_t &data)
+    {
+        pipe_data_t::print("2",data);
+
+        data.u32 = 2;
         return true;
     }
 };
 
-struct Classifier: public pipe_t<pipe_data_t>
+// one to one transform
+struct functor3
 {
-    Classifier() {}
-
-    virtual ~Classifier()
+    bool operator()(pipe_data_t &data)
     {
-        printf("~Classifier\n");
-    }
-
-    void exec(const pipe_data_t &data)  override
-    {
-        // print the input data
-        pipe_data_t::print("C",data);
-
-        // create a mutable copy
-        pipe_data_t x = data;
-
-        // update the copy
-        x.cls = 1;
-
-        // call the next
-        next(x);
+        pipe_data_t::print("3",data);
+        data.cls = 3;
+        return true;
     }
 };
 
-struct Transform: public pipe_t<pipe_data_t>
+// one to one transform
+struct functor4
 {
-    Transform() {}
-
-    virtual ~Transform()
+    bool operator()(pipe_data_t &data)
     {
-        printf("~Transform\n");
-    }
-
-    void exec(const pipe_data_t &data)  override
-    {
-        // print the input data
-        pipe_data_t::print("T",data);
-
-        // create a mutable copy
-        pipe_data_t x = data;
-
-        // update the copy
-        uint32_t    u32 = data.u32;
-        x.lla.m_lon = static_cast<double>(u32) * 2.0;
-        x.lla.m_lat = static_cast<double>(u32) * 2.0;
-        x.lla.m_alt = static_cast<double>(u32) * 2.0;
-
-        // call the next
-        next(x);
+        pipe_data_t::print("4",data);
+        return true;
     }
 };
 
-struct Reader: public pipe_t<pipe_data_t>
-{
-    Reader() {}
-
-    virtual ~Reader()
-    {
-        printf("~Reader\n");
-    }
-
-    // void exec(const pipe_data_t &data)  override
-    void exec(const pipe_data_t &data) override
-    {
-        // print the input data
-
-        // create multiple mutable copies
-        for(int i=0;i<10;++i) {
-            pipe_data_t::print("R",data);
-            // create mutable copy
-            pipe_data_t x = data;
-            // update it
-            x.u32 = i;
-            // call next
-            next(x);
-        }
-    }
-};
-
-// null deleter for shared pointer to static objects
 void test2()
 {
-    printf("TEST explicit pipe between statically allocated classes with an object as the piped data (pipe_data_t = latitude/longitude/altitude)\n");
-    printf("only difference is that the shared_ptr instances need a null deleter\n");
-    printf("uses inheritance of the pipe_t object\n");
-    Reader     r;
-    Transform  t;
-    Classifier c;
+    printf("TEST composed pipeline with functor objects\n");
+    printf("uses composition rather than inheritance\n");
+    printf("first functor is a generator producing multiple outputs\n");
 
-    struct null_deleter
-    {
-        void operator()(void const *) const
-        {
-        }
-    };
+    // create the piped functions
+    auto a = pipe<pipe_data_t>(functor1());
+    auto b = pipe<pipe_data_t>(functor2());
+    auto c = pipe<pipe_data_t>(functor3());
+    auto d = pipe<pipe_data_t>(functor4());
 
-    std::shared_ptr<Reader>     pr(&r,null_deleter());
-    std::shared_ptr<Transform>  pt(&t,null_deleter());
-    std::shared_ptr<Classifier> pc(&c,null_deleter());
-    auto pw                   = pipe<pipe_data_t>(Writer());
+    // compose them into an (a -> b -> c -> d) pipeline
+    auto x = compose<pipe_data_t>(a,b,c,d);
 
-    pipe_data_t        v = pipe_data_t();
-
-    // set up the pipeline
-    // reader -> transform -> classifier -> writer
-    auto x = compose<pipe_data_t>(pr,pt,pc,pw);
-
-    // pr->pipe(pt)->pipe(pc)->pipe(pw);
-
-    // execute it
-    x->exec(v);
+    // execute the pipeline
+    pipe_data_t data;
+    x->exec(data);
 }
