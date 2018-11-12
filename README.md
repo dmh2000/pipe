@@ -3,9 +3,10 @@ c++ functional pipeline and composition
 
 A C++ implementation of a template to create composable functions in a pipeline. In the pipe, each successive function
 gets a reference to the initial input value which can then be modified or used by the function.
-All functions in the pipe must have the template instantiated with the same type. 
-Functions are joined using the 'compose' method
-Functions return true to continue execution of the pipe, false to stop execution and return.
+
+- All functions in the pipe must have the template instantiated with the same type. 
+- Functions are joined using the 'compose' method
+- Functions return true to continue execution of the pipe, false to stop execution and return.
 
 
 See the test examples for more on how the pipes work. 
