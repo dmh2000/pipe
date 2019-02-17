@@ -47,7 +47,7 @@ See the test examples for more on how the pipes work.
     {
         printf("TEST composed pipeline with all plain old functions\n");
     
-        // lambdas
+        // see other tests for usage with lambda etc
         auto a = pipe<int>(f);
         auto b = pipe<int>(g);
         auto c = pipe<int>(h);
